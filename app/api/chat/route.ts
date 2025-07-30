@@ -1,17 +1,36 @@
-import { streamText, createDataStreamResponse } from 'ai';
+import { streamText, createDataStreamResponse, tool } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 
 // Tool that does NOT have an execute function
-// This will require client-side handling
-const weatherTool = {
-  name: 'getWeather',
-  description: 'Get the current weather for a location',
-  parameters: z.object({
-    location: z.string().describe('The location to get weather for'),
-    unit: z.enum(['celsius', 'fahrenheit']).optional().default('celsius'),
-  }),
+// This will require client-side handling with setToolResult
+const askForLocation = {
+  name: 'askForLocation',
+  description: 'Ask the user for their location',
+  parameters: z.object({}),
 };
+
+// Tool with execute method that returns weather data
+const showWeatherForLocation = tool({
+  description: 'Show weather information for a specific location',
+  parameters: z.object({
+    location: z.string().describe('The location to show weather for'),
+  }),
+  execute: async ({ location }) => {
+    console.log('=== showWeatherForLocation.execute called ===');
+    console.log('Location:', location);
+    
+    // Return fake weather data
+    const weatherData = {
+      locationName: location,
+      temperature: `${Math.floor(Math.random() * 15) + 15}°C`,
+      conditions: ['sunny', 'partly cloudy', 'cloudy', 'rainy'][Math.floor(Math.random() * 4)],
+    };
+    
+    console.log('Returning weather data:', weatherData);
+    return weatherData;
+  },
+});
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
@@ -22,8 +41,10 @@ export async function POST(req: Request) {
         model: openai('gpt-4o-mini'),
         messages,
         tools: {
-          getWeather: weatherTool,
+          askForLocation: askForLocation,
+          showWeatherForLocation: showWeatherForLocation,
         },
+        maxSteps: 5,
         toolChoice: 'auto',
         experimental_telemetry: {
           isEnabled: true,
