@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Langfuse Tool Call Missing Reproduction
 
-## Getting Started
+This repository demonstrates an issue where OpenTelemetry traces are missing tool call details when a streamText response ends with a tool call (finishReason: 'tool-call').
 
-First, run the development server:
+## Setup
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. Clone this repository
+2. Copy `.env.sample` to `.env.local` and fill in your API keys:
+   ```bash
+   cp .env.sample .env.local
+   ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+4. Run the development server:
+   ```bash
+   npm run dev
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+5. Open [http://localhost:3000](http://localhost:3000)
 
-## Learn More
+## Testing the Issue
 
-To learn more about Next.js, take a look at the following resources:
+1. Ask the chat about weather in any location (e.g., "What's the weather in London?")
+2. Observe the console logs showing:
+   - Server-side `onFinish` callback output
+   - Client-side `onToolCall` callback output
+3. Check your Langfuse dashboard for the telemetry data
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Expected vs Actual Behavior
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Expected**: When a response ends with a tool call, the OpenTelemetry span should include the `ai.response.toolCalls` attribute with the tool call details.
 
-## Deploy on Vercel
+**Actual**: When the response ends with `finishReason: 'tool-call'`, the tool call details might be missing from the telemetry span.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Key Files
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `instrumentation.ts` - Sets up OpenTelemetry with LangfuseExporter
+- `app/api/chat/route.ts` - Chat endpoint using streamText with a tool that has no execute function
+- `app/page.tsx` - Client component handling tool calls via onToolCall callback
+
+## Notes
+
+- The weather tool intentionally has no `execute` function to force client-side handling
+- This simulates scenarios where tools need to be executed on the client (e.g., accessing local data, browser APIs)
+- Check the server console for `onFinish` logs showing finishReason and toolCalls
